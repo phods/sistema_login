@@ -1,8 +1,8 @@
 from bottle import route, run,request, template,redirect,static_file
-
 from app.models.tables import User
-
 from app import app
+import bcrypt
+
 
 
 
@@ -49,12 +49,10 @@ def cadastro():
 	return template('cadastro',existe_username=False)
 
 @app.route('/cadastro',method='POST')
-def acao_cadastro(db):
-	
-	
-
+def acao_cadastro(db,session):
 	username = request.forms.get('username')
-	password = request.forms.get('password')
+	
+	
 	try:
 		db.query(User).filter(User.username==username).one()
 		existe_username=True
@@ -62,8 +60,17 @@ def acao_cadastro(db):
 	except:
 		existe_username=False
 	if not existe_username:
-		new_user=User(username,password)
+		password = request.forms.get('password')
+		password_bytes=str.encode(password)
+		salt_bytes=bcrypt.gensalt()
+		salt=salt_bytes.decode()
+
+		hashed_bytes=bcrypt.hashpw(password_bytes,salt_bytes)
+		hashed=hashed_bytes.decode()
+
+		new_user=User(username,hashed,salt)
 		db.add(new_user)
+		session['name']=username
 		return redirect('/usuarios')
 
 	return template('cadastro',existe_username=True)
@@ -71,19 +78,39 @@ def acao_cadastro(db):
 
 
 @app.route('/', method='POST') # @post('/login')
-def acao_login(db):
+def acao_login(db,session):
 	username = request.forms.get('username')
-	password = request.forms.get('password')
-	result=db.query(User).filter((User.username==username) & (User.password==password)).all()
+	users=db.query(User).filter(User.username==username).all()
+	
+	if users:
+		user=users[0]
+		password = request.forms.get('password')
+		password_bytes=str.encode(password)
+
+		salt_bytes=str.encode(user.salt)
+		hashed_bytes=bcrypt.hashpw(password_bytes,salt_bytes)
+		hashed=hashed_bytes.decode()
+
+		#result=bcrypt.checkpw(password_bytes,hashed_bytes)
+		result = True if user.hashed ==  hashed else False
+		if result:
+			session['name']=username
+			return redirect('/usuarios')
+	
+	#result=db.query(User).filter((User.username==username) & (User.password==password)).all()
 	#sucesso = False if not result else True
-	if result:
-		return redirect('/usuarios')
+
 	return template('login',sucesso=False)
 
 @app.route('/usuarios')
-def usuarios(db):
+def usuarios(db,session):
+	if session.get('name'):
+		acesso=True
+	else:
+		acesso=False
+
 	userr=db.query(User).all()
-	return template ('lista_usuarios',usuarios=userr)
+	return template ('lista_usuarios',usuarios=userr,acesso=acesso)
 
 
 @app.error(404)

@@ -1,5 +1,6 @@
 % rebase('base.html', title='Fazer login')
 
+
 	<div class="panel-heading">
   		<h3 class="panel-title">Login</h3>
   	</div>
@@ -16,5 +17,10 @@
 			    	</fieldset>
 			      	</form>
 			      	<p><a href="cadastro"> Clique aqui</a> para fazer o cadastro</p>
+
+			      	%if not sucesso:
+			      		<p style="color:red"><strong>Usuario ou senha incorretos</strong></p>
+			      	%end
+			      	
 	</div>
 		
